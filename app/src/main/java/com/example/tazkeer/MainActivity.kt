@@ -197,6 +197,7 @@ class MainActivity : Activity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == 200 && resultCode == RESULT_OK) {
+            @Suppress("DEPRECATION")
             val uri: Uri? = data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
             if (uri != null) {
                 prefs.edit().putString("custom_tone", uri.toString()).apply()
@@ -249,7 +250,6 @@ class MainActivity : Activity() {
     }
 
     private fun refreshUI() {
-        // عرض المواقيت الحالية
         val jsonStr = prefs.getString("prayer_timings_json", null)
         if (jsonStr != null) {
             val obj = JSONObject(jsonStr)
@@ -261,7 +261,6 @@ class MainActivity : Activity() {
             prayersStatusText.text = "لم يتم جلب المواقيت بعد. اضغط على زر الجلب بالأعلى."
         }
 
-        // عرض قائمة القضاء
         qadaaContainer.removeAllViews()
         val qadaaArr = JSONArray(prefs.getString("qadaa_list", "[]"))
         if (qadaaArr.length() == 0) {
@@ -293,7 +292,6 @@ class MainActivity : Activity() {
             }
         }
 
-        // عرض المهام اليومية
         tasksContainer.removeAllViews()
         val tasksArr = JSONArray(prefs.getString("custom_tasks", "[]"))
         for (i in 0 until tasksArr.length()) {
@@ -385,7 +383,7 @@ object ReminderHelper {
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
             description = "إشعارات التذكير الدورية"
-            setSound(null, null) // نتحكم بالصوت برمجياً لدعم الوضع الصامت الذكي وتدرج التنبيه
+            setSound(null, null)
         }
         val urgentChannel = NotificationChannel(
             CHANNEL_URGENT,
@@ -426,7 +424,7 @@ object ReminderHelper {
             var nextPrayerMillis = if (i < prayers.size - 1) {
                 timesInMillis[i + 1]
             } else {
-                timesInMillis[0] + 24 * 60 * 60 * 1000L // الفجر في اليوم التالي
+                timesInMillis[0] + 24 * 60 * 60 * 1000L
             }
 
             if (now >= nextPrayerMillis) {
@@ -601,7 +599,6 @@ class ReminderReceiver : BroadcastReceiver() {
             "ACTION_REMIND" -> {
                 val now = System.currentTimeMillis()
 
-                // التحسين 1: نافذة وقت الصلاة الذكية ونقل الفائتة إلى القضاء
                 if (isPrayer && endMillis > 0 && now >= endMillis) {
                     ReminderHelper.completeTask(context, id)
                     ReminderHelper.addQadaaPrayer(context, title)
@@ -609,14 +606,11 @@ class ReminderReceiver : BroadcastReceiver() {
                     return
                 }
 
-                // التحسين 2: تدرج قوة التنبيه عند بقاء أقل من 30 دقيقة لخروج الصلاة
                 val remainingMillis = endMillis - now
                 val isUrgentWindow = isPrayer && remainingMillis in 1..(30 * 60 * 1000L)
 
-                // التحسين 5: فحص الوضع الصامت الذكي
                 playSmartFeedback(context, isFirstAttempt = (attempt == 0), isUrgent = isUrgentWindow)
 
-                // إظهار الإشعار المستمر في الستارة مع الأزرار الثلاثة
                 showPersistentReminderNotification(
                     context = context,
                     id = id,
@@ -628,7 +622,6 @@ class ReminderReceiver : BroadcastReceiver() {
                     isUrgent = isUrgentWindow
                 )
 
-                // جدولة التذكير القادم (كل X دقيقة)
                 ReminderHelper.scheduleExactAlarm(
                     context = context,
                     id = id,
@@ -645,9 +638,9 @@ class ReminderReceiver : BroadcastReceiver() {
 
     private fun playSmartFeedback(context: Context, isFirstAttempt: Boolean, isUrgent: Boolean) {
         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        @Suppress("DEPRECATION")
         val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
 
-        // إذا كان الهاتف في وضع الصامت أو الاهتزاز: نكتفي باهتزاز لطيف دون إحراج
         if (audioManager.ringerMode != AudioManager.RINGER_MODE_NORMAL) {
             vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 250, 150, 250), -1))
             return
@@ -661,7 +654,7 @@ class ReminderReceiver : BroadcastReceiver() {
                 if (custom != null) Uri.parse(custom)
                 else RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
             }
-            else -> RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION) // رنة "تن" قصيرة
+            else -> RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
         }
 
         try {
@@ -672,7 +665,6 @@ class ReminderReceiver : BroadcastReceiver() {
                 .build()
             ringtone.play()
 
-            // إيقاف رنة البداية أو الإنذار تلقائياً بعد 6 ثوانٍ حتى لا تستمر للأبد
             if (isFirstAttempt || isUrgent) {
                 Handler(Looper.getMainLooper()).postDelayed({
                     if (ringtone.isPlaying) ringtone.stop()
@@ -718,7 +710,7 @@ class ReminderReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val snooze60Intent = Intent(context, snooze30Intent).apply {
+        val snooze60Intent = Intent(snooze30Intent).apply {
             action = "ACTION_SNOOZE_60"
         }
         val snooze60Pi = PendingIntent.getBroadcast(
